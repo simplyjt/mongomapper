@@ -1,4 +1,4 @@
-= Sequence plugin
+== Sequence plugin
 
 This will enable one to use SQL-like sequence for id (_id).
 
@@ -7,7 +7,7 @@ Just do
   include MongoMapper::Document
   include UseSequenceAsMongoId
 
-= Strict Keys
+== Strict Keys
 
 When you do
 
@@ -20,14 +20,14 @@ If you want to disable that for mantainability, do
   include SaveToMongoKeysOnly
   include MongoMapper::Document
 
-= Embedded documents without id (_id)
+== Embedded documents without id (_id)
 
 Sometimes there's no reason to use id for embedded documents. Just do
 
   include NoEmbeddedMongoId
   include MongoMapper::EmbeddedDocument
 
-= Operator 'e'
+== Operator 'e'
 
 When you do
 
@@ -43,9 +43,14 @@ which is fine in most case, but sometimes you just want to match the exact array
 
 which guarantees no operator will be used.
 
-= Disclaimer for the new features
+== Disclaimer for the new features
 
 All the old tests pass. But I still need to write tests for the new features.
+
+== How to use spatial index
+  
+  key :lat_lng, Array # or use embedded document type
+  ensure_index [[:lat_lng, "2d"]]
 
 = MongoMapper
 
