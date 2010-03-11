@@ -1,8 +1,8 @@
 = Sequence plugin
 
-This will enable one to use SQL like sequnce for id (_id).
+This will enable one to use SQL-like sequence for id (_id).
 
-Just do this:
+Just do
 
   include MongoMapper::Document
   include UseSequenceAsMongoId
@@ -13,9 +13,7 @@ When you do
 
   Foo.create(:explicit_key => 'bar', :implicity_key => 'cake')
 
-even if :implicity_key was not definied, i.e. key :implicity_key, String
-
-MongoMapper will automatically create the new key and insert the document.
+even when :implicity_key was not definied (i.e. key :implicity_key, String), MongoMapper will still create the new key and insert the document.
 
 If you want to disable that for mantainability, do
 
@@ -24,10 +22,10 @@ If you want to disable that for mantainability, do
 
 = Embedded documents without id (_id)
 
-Sometimes there's no reason to have id for embedded documents. Just do
+Sometimes there's no reason to use id for embedded documents. Just do
 
   include NoEmbeddedMongoId
-  include MongoMapper::Document
+  include MongoMapper::EmbeddedDocument
 
 = Operator 'e'
 
@@ -47,7 +45,7 @@ which guarantees no operator will be used.
 
 = Disclaimer for the new features
 
-All the old tests pass. But I still need to write new test.
+All the old tests pass. But I still need to write tests for the new features.
 
 = MongoMapper
 
