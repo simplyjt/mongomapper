@@ -1,3 +1,54 @@
+= Sequence plugin
+
+This will enable one to use SQL like sequnce for id (_id).
+
+Just do this:
+
+  include MongoMapper::Document
+  include UseSequenceAsMongoId
+
+= Strict Keys
+
+When you do
+
+  Foo.create(:explicit_key => 'bar', :implicity_key => 'cake')
+
+even if :implicity_key was not definied, i.e. key :implicity_key, String
+
+MongoMapper will automatically create the new key and insert the document.
+
+If you want to disable that for mantainability, do
+
+  include SaveToMongoKeysOnly
+  include MongoMapper::Document
+
+= Embedded documents without id (_id)
+
+Sometimes there's no reason to have id for embedded documents. Just do
+
+  include NoEmbeddedMongoId
+  include MongoMapper::Document
+
+= Operator 'e'
+
+When you do
+
+  Foo.all(:array => [1,2])
+
+what you get is actually
+
+  Foo.all(:array.in => [1,2])
+
+which is fine in most case, but sometimes you just want to match the exact array (as in spatial data). Now you can do
+
+  Foo.all(:array.e => [1,2])
+
+which guarantees no operator will be used.
+
+= Disclaimer for the new features
+
+All the old tests pass. But I still need to write new test.
+
 = MongoMapper
 
 A Ruby Object Mapper for Mongo.

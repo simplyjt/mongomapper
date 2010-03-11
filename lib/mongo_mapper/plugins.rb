@@ -32,3 +32,7 @@ end
 
 require 'mongo_mapper/plugins/associations'
 require 'mongo_mapper/plugins/pagination'
+require 'mongo_mapper/plugins/sequence/sequence'
+require 'mongo_mapper/plugins/sequence/use_sequence_as_mongo_id'
+require 'mongo_mapper/plugins/before_flags/no_embedded_mongo_id'
+require 'mongo_mapper/plugins/before_flags/save_to_mongo_keys_only'

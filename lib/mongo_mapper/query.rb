@@ -56,7 +56,7 @@ module MongoMapper
       end
 
       def symbol_operator?(object)
-        object.respond_to?(:field, :operator)
+        object.respond_to?(:field, :operator) and object.operator != 'e'
       end
 
       def to_criteria(conditions, parent_key=nil)

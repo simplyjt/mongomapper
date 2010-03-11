@@ -2,7 +2,7 @@ module MongoMapper
   module Plugins
     module Keys
       def self.configure(model)
-        model.key :_id, ObjectId
+        model.key :_id, ObjectId unless model.respond_to?(:no_embedded_mongo_id)
       end
 
       module ClassMethods
@@ -148,8 +148,8 @@ module MongoMapper
         def initialize(attrs={}, from_database=false)
           unless attrs.nil?
             provided_keys = attrs.keys.map { |k| k.to_s }
-            unless provided_keys.include?('_id') || provided_keys.include?('id')
-              write_key :_id, Mongo::ObjectID.new
+            unless self.class.respond_to?(:no_embedded_mongo_id) || provided_keys.include?('_id') || provided_keys.include?('id')
+              write_key :_id, self.class.respond_to?(:next_mongo_id) ? self.class.next_mongo_id : Mongo::ObjectID.new
             end
           end
 
@@ -166,6 +166,25 @@ module MongoMapper
 
         def new?
           @new
+        end
+
+        def old?
+          !@new
+        end
+
+        def set_attributes(hash, *key_white_list)
+          key_white_list.each do |k|
+            str = "#{k}="
+            if respond_to?(str)
+              if hash.has_key?(k)
+                send(str, hash[k])
+              else
+                raise(ArgumentError, "#{hash.inspect} has no key: #{k}")
+              end
+            else 
+              raise(ArgumentError, "Instance of #{self.class} class does not respond to method: #{str}")
+            end
+          end
         end
 
         def attributes=(attrs)
@@ -234,7 +253,7 @@ module MongoMapper
         end
 
         def []=(name, value)
-          ensure_key_exists(name)
+          ensure_key_exists(name) unless self.class.respond_to?(:save_to_mongo_keys_only)
           write_key(name, value)
         end
 
