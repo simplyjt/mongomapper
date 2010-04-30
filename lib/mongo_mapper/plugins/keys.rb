@@ -7,6 +7,7 @@ module MongoMapper
 
       module ClassMethods
         def inherited(descendant)
+          key :_type, String unless keys.keys.include?(:_type)
           descendant.instance_variable_set(:@keys, keys.dup)
           super
         end
@@ -25,6 +26,10 @@ module MongoMapper
           create_validations_for(key)
 
           key
+        end
+
+        def key?(key)
+          keys.keys.include?(key.to_s)
         end
 
         def using_object_id?
@@ -94,7 +99,6 @@ module MongoMapper
           end
 
           def create_key_in_descendants(*args)
-            return if descendants.blank?
             descendants.each { |descendant| descendant.key(*args) }
           end
 
@@ -146,14 +150,7 @@ module MongoMapper
 
       module InstanceMethods
         def initialize(attrs={}, from_database=false)
-          unless attrs.nil?
-            provided_keys = attrs.keys.map { |k| k.to_s }
-            unless self.class.respond_to?(:no_embedded_mongo_id) || provided_keys.include?('_id') || provided_keys.include?('id')
-              write_key :_id, self.class.respond_to?(:next_mongo_id) ? self.class.next_mongo_id : Mongo::ObjectID.new
-            end
-          end
-
-          assign_type_if_present
+          default_id_value(attrs)
 
           if from_database
             @new = false
@@ -162,10 +159,12 @@ module MongoMapper
             @new = true
             assign(attrs)
           end
+
+          assign_type
         end
 
-        def new?
-          @new
+        def persisted?
+          !new? && !destroyed?
         end
 
         def old?
@@ -194,9 +193,6 @@ module MongoMapper
             writer_method = "#{name}="
 
             if respond_to?(writer_method)
-              if writer_method == '_root_document='
-                puts "_root_document= #{value.inspect}"
-              end
               self.send(writer_method, value)
             else
               self[name.to_s] = value
@@ -214,7 +210,11 @@ module MongoMapper
 
           embedded_associations.each do |association|
             if documents = instance_variable_get(association.ivar)
-              attrs[association.name] = documents.map { |document| document.to_mongo }
+              if association.one?
+                attrs[association.name] = documents.to_mongo
+              else
+                attrs[association.name] = documents.map { |document| document.to_mongo }
+              end
             end
           end
 
@@ -242,7 +242,7 @@ module MongoMapper
 
         def id=(value)
           if self.class.using_object_id?
-            value = MongoMapper.normalize_object_id(value)
+            value = ObjectId.to_mongo(value)
           end
 
           self[:_id] = value
@@ -257,28 +257,33 @@ module MongoMapper
           write_key(name, value)
         end
 
-        # @api public
         def keys
           self.class.keys
         end
 
-        # @api private?
         def key_names
           keys.keys
         end
 
-        # @api private?
         def non_embedded_keys
           keys.values.select { |key| !key.embeddable? }
         end
 
-        # @api private?
         def embedded_keys
           keys.values.select { |key| key.embeddable? }
         end
 
         private
-          def assign_type_if_present
+          def default_id_value(attrs)
+            unless attrs.nil?
+              provided_keys = attrs.keys.map { |k| k.to_s }
+              unless self.class.respond_to?(:no_embedded_mongo_id) || provided_keys.include?('_id') || provided_keys.include?('id')
+                write_key :_id, self.class.respond_to?(:next_mongo_id) ? self.class.next_mongo_id : BSON::ObjectID.new
+              end
+            end
+          end
+
+          def assign_type
             self._type = self.class.name if respond_to?(:_type=)
           end
 
@@ -286,10 +291,17 @@ module MongoMapper
             self.class.key(name) unless respond_to?("#{name}=")
           end
 
+          def set_parent_document(key, value)
+            if key.embeddable? && value.is_a?(key.type)
+              value._parent_document = self
+            end
+          end
+
           def read_key(name)
             if key = keys[name]
               var_name = "@#{name}"
               value = key.get(instance_variable_get(var_name))
+              set_parent_document(key, value)
               instance_variable_set(var_name, value)
             else
               raise KeyNotFound, "Could not find key: #{name.inspect}"
@@ -303,10 +315,7 @@ module MongoMapper
           def write_key(name, value)
             key = keys[name]
 
-            if key.embeddable? && value.is_a?(key.type)
-              value._parent_document = self
-            end
-
+            set_parent_document(key, value)
             instance_variable_set "@#{name}_before_typecast", value
             instance_variable_set "@#{name}", key.set(value)
           end

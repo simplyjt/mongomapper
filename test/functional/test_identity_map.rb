@@ -142,7 +142,7 @@ class IdentityMapTest < Test::Unit::TestCase
 
     context "#load" do
       setup do
-        @id = Mongo::ObjectID.new
+        @id = BSON::ObjectID.new
       end
 
       should "add document to map" do
@@ -360,7 +360,6 @@ class IdentityMapTest < Test::Unit::TestCase
           include MongoMapper::Document
           plugin MongoMapper::Plugins::IdentityMap
           
-          key :_type, String
           key :title, String
           key :parent_id, ObjectId
           
@@ -454,7 +453,7 @@ class IdentityMapTest < Test::Unit::TestCase
       
       should "not add to map when loading" do
         @post_class.without_identity_map do
-          post = @post_class.load({'_id' => Mongo::ObjectID.new, 'title' => 'Awesome!'})
+          post = @post_class.load({'_id' => BSON::ObjectID.new, 'title' => 'Awesome!'})
           assert_not_in_map(post)
         end
       end

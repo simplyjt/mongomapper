@@ -11,10 +11,10 @@ end
 
 class Binary
   def self.to_mongo(value)
-    if value.is_a?(ByteBuffer)
+    if value.is_a?(BSON::Binary)
       value
     else
-      value.nil? ? nil : ByteBuffer.new(value)
+      value.nil? ? nil : BSON::Binary.new(value)
     end
   end
 
@@ -26,16 +26,14 @@ end
 class Boolean
   BOOLEAN_MAPPING = {
     true => true, 'true' => true, 'TRUE' => true, 'True' => true, 't' => true, 'T' => true, '1' => true, 1 => true, 1.0 => true,
-    false => false, 'false' => false, 'FALSE' => false, 'False' => false, 'f' => false, 'F' => false, '0' => false, 0 => false, 0.0 => false, nil => false
+    false => false, 'false' => false, 'FALSE' => false, 'False' => false, 'f' => false, 'F' => false, '0' => false, 0 => false, 0.0 => false, nil => nil
   }
   
   def self.to_mongo(value)
     if value.is_a?(Boolean)
       value
     else
-      v = BOOLEAN_MAPPING[value]
-      v = value.to_s.downcase == 'true' if v.nil? # Check all mixed case spellings for true
-      v
+      BOOLEAN_MAPPING[value]
     end
   end
 
@@ -131,10 +129,10 @@ class ObjectId
   def self.to_mongo(value)
     if value.blank?
       nil
-    elsif value.is_a?(Mongo::ObjectID)
+    elsif value.is_a?(BSON::ObjectID)
       value
     else
-      Mongo::ObjectID.from_string(value.to_s)
+      BSON::ObjectID.from_string(value.to_s)
     end
   end
   
@@ -184,14 +182,15 @@ class Time
     if value.nil? || value == ''
       nil
     else
-      time = value.is_a?(Time) ? value : MongoMapper.time_class.parse(value.to_s)
+      time_class = Time.try(:zone).present? ? Time.zone : Time
+      time = value.is_a?(Time) ? value : time_class.parse(value.to_s)
       # Convert time to milliseconds since BSON stores dates with that accurracy, but Ruby uses microseconds
       Time.at((time.to_f * 1000).round / 1000.0).utc if time
     end
   end
   
   def self.from_mongo(value)
-    if MongoMapper.use_time_zone? && value.present?
+    if Time.try(:zone).present? && value.present?
       value.in_time_zone(Time.zone)
     else
       value
@@ -199,11 +198,15 @@ class Time
   end
 end
 
-class Mongo::ObjectID
+class BSON::ObjectID
   alias_method :original_to_json, :to_json
   
+  def as_json(options=nil)
+    to_s
+  end
+  
   def to_json(options = nil)
-    %Q("#{to_s}")
+    as_json.to_json
   end
 end
 

@@ -21,11 +21,11 @@ class SupportTest < Test::Unit::TestCase
   
   context "Binary#to_mongo" do
     should "convert to byte buffer if not byte buffer" do
-      Binary.to_mongo('asdfsadasdfs').is_a?(ByteBuffer).should be_true
+      Binary.to_mongo('asdfsadasdfs').is_a?(BSON::ByteBuffer).should be_true
     end
     
     should "be byte buffer if byte buffer" do
-      Binary.to_mongo(ByteBuffer.new('asdfsadasdfs')).is_a?(ByteBuffer).should be_true
+      Binary.to_mongo(BSON::ByteBuffer.new('asdfsadasdfs')).is_a?(BSON::ByteBuffer).should be_true
     end
     
     should "be nil if nil" do
@@ -35,7 +35,7 @@ class SupportTest < Test::Unit::TestCase
   
   context "Binary#from_mongo" do
     should "return value" do
-      buffer = ByteBuffer.new('asdfasdfasdf')
+      buffer = BSON::ByteBuffer.new('asdfasdfasdf')
       Binary.from_mongo(buffer).to_s.should == buffer.to_s
     end
   end
@@ -60,6 +60,10 @@ class SupportTest < Test::Unit::TestCase
       Boolean.to_mongo('0').should be_false
       Boolean.to_mongo(0).should be_false
     end
+    
+    should "be nil for nil" do
+      Boolean.to_mongo(nil).should be_nil
+    end
   end
   
   context "Boolean#from_mongo" do
@@ -71,8 +75,8 @@ class SupportTest < Test::Unit::TestCase
       Boolean.from_mongo(false).should be_false
     end
     
-    should "be false for nil" do
-      Boolean.from_mongo(nil).should be_false
+    should "be nil for nil" do
+      Boolean.to_mongo(nil).should be_nil
     end
   end
   
@@ -176,19 +180,19 @@ class SupportTest < Test::Unit::TestCase
     end
     
     should "return value if object id" do
-      id = Mongo::ObjectID.new
+      id = BSON::ObjectID.new
       ObjectId.to_mongo(id).should be(id)
     end
     
     should "return object id if string" do
-      id = Mongo::ObjectID.new
+      id = BSON::ObjectID.new
       ObjectId.to_mongo(id.to_s).should be(id)
     end
   end
   
   context "ObjectId#from_mongo" do
     should "return value" do
-      id = Mongo::ObjectID.new
+      id = BSON::ObjectID.new
       ObjectId.from_mongo(id).should == id
     end
   end
@@ -352,15 +356,27 @@ class SupportTest < Test::Unit::TestCase
     end
   end
   
-  context "Mongo::ObjectID.to_json" do
-    should "convert object id to string" do
-      id = Mongo::ObjectID.new
-      id.to_json.should == %Q("#{id}")
+  context "BSON::ObjectID" do
+    context "#as_json" do
+      should "convert object id to string" do
+        id = BSON::ObjectID.new
+        id.as_json.should == id.to_s
+      end
     end
+    context "#to_json" do
+      should "convert object id to string" do
+        id = BSON::ObjectID.new
+        id.to_json.should == %Q("#{id}")
+      end
+
+      should "support ruby driver syntax also" do
+        id = BSON::ObjectID.new
+        id.original_to_json.should == %Q({"$oid": "#{id}"})
+      end
+    end
+  end
+  
+  context "BSON::ObjectID.to_json" do
     
-    should "support ruby driver syntax also" do
-      id = Mongo::ObjectID.new
-      id.original_to_json.should == %Q({"$oid": "#{id}"})
-    end
   end
 end

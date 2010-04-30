@@ -5,11 +5,47 @@ class ManyDocumentsProxyTest < Test::Unit::TestCase
   def setup
     Project.collection.remove
     Status.collection.remove
+
+    @pet_class = Doc do
+      key :name, String
+      key :owner_id, ObjectId
+    end
+
+    @owner_class = Doc do
+      key :name, String
+    end
+    @owner_class.many :pets, :class => @pet_class, :foreign_key => :owner_id, :order => 'name'
   end
   
   should "default reader to empty array" do
     project = Project.new
     project.statuses.should == []
+  end
+
+  should "allow assignment of many associated documents using a hash" do
+    person_attributes = {
+      'name' => 'Mr. Pet Lover',
+      'pets' => [
+        {'name' => 'Jimmy', 'species' => 'Cocker Spainel'},
+        {'name' => 'Sasha', 'species' => 'Siberian Husky'},
+      ]
+    }
+
+    owner = @owner_class.new(person_attributes)
+    owner.name.should == 'Mr. Pet Lover'
+    owner.pets[0].name.should == 'Jimmy'
+    owner.pets[0].species.should == 'Cocker Spainel'
+    owner.pets[1].name.should == 'Sasha'
+    owner.pets[1].species.should == 'Siberian Husky'
+
+    owner.save.should be_true
+    owner.reload
+
+    owner.name.should == 'Mr. Pet Lover'
+    owner.pets[0].name.should == 'Jimmy'
+    owner.pets[0].species.should == 'Cocker Spainel'
+    owner.pets[1].name.should == 'Sasha'
+    owner.pets[1].species.should == 'Siberian Husky'
   end
 
   should "allow adding to association like it was an array" do
@@ -20,26 +56,60 @@ class ManyDocumentsProxyTest < Test::Unit::TestCase
     project.statuses.size.should == 3
   end
 
-  should "be able to replace the association" do
-    project = Project.new
-    project.statuses = [Status.new(:name => "ready")]
-    project.save.should be_true
+  context "replacing the association" do
+    context "with objects of the class" do
+      should "work" do
+        project = Project.new
+        project.statuses = [Status.new(:name => "ready")]
+        project.save.should be_true
 
-    project.reload
-    project.statuses.size.should == 1
-    project.statuses[0].name.should == "ready"
+        project.reload
+        project.statuses.size.should == 1
+        project.statuses[0].name.should == "ready"
+      end
+    end
+
+    context "with Hashes" do
+      should "convert to objects of the class and work" do
+        project = Project.new
+        project.statuses = [{ 'name' => 'ready' }]
+        project.save.should be_true
+
+        project.reload
+        project.statuses.size.should == 1
+        project.statuses[0].name.should == "ready"
+      end
+    end
   end
   
-  should "correctly assign foreign key when using <<, push and concat" do
-    project = Project.new
-    project.statuses <<     Status.new(:name => '<<')
-    project.statuses.push   Status.new(:name => 'push')
-    project.statuses.concat Status.new(:name => 'concat')
-    
-    project.reload
-    project.statuses[0].project_id.should == project.id
-    project.statuses[1].project_id.should == project.id
-    project.statuses[2].project_id.should == project.id
+  context "using <<, push and concat" do
+    context "with objects of the class" do
+      should "correctly assign foreign key" do
+        project = Project.new
+        project.statuses <<     Status.new(:name => '<<')
+        project.statuses.push   Status.new(:name => 'push')
+        project.statuses.concat Status.new(:name => 'concat')
+
+        project.reload
+        project.statuses[0].project_id.should == project.id
+        project.statuses[1].project_id.should == project.id
+        project.statuses[2].project_id.should == project.id
+      end
+    end
+
+    context "with Hashes" do
+      should "correctly convert to objects and assign foreign key" do
+        project = Project.new
+        project.statuses <<     { 'name' => '<<' }
+        project.statuses.push(  { 'name' => 'push' })
+        project.statuses.concat({ 'name' => 'concat' })
+
+        project.reload
+        project.statuses[0].project_id.should == project.id
+        project.statuses[1].project_id.should == project.id
+        project.statuses[2].project_id.should == project.id
+      end
+    end
   end
   
   context "build" do
@@ -61,6 +131,19 @@ class ManyDocumentsProxyTest < Test::Unit::TestCase
       status = project.statuses.build(:name => 'Foo')
       status.save!
       project.statuses.size.should == 1
+    end
+    
+    should "update collection without save" do
+      project = Project.create
+      project.statuses.build(:name => 'Foo')
+      project.statuses.size.should == 1
+    end
+    
+    should "save built document when saving parent" do
+      project = Project.create
+      status = project.statuses.build(:name => 'Foo')
+      project.save!
+      status.should_not be_new
     end
   end
   
